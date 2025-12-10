@@ -22,6 +22,10 @@ app.get("/", (req, res) => {
   res.send("Server is live");
 });
 
+app.get("/check", (req, res) => {
+  res.send("Checking if this really works");
+});
+
 app.listen(process.env.PORT, () => {
   console.log("Server is running");
 });
