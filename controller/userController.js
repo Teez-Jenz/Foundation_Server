@@ -29,24 +29,24 @@ exports.subscribe = async (req, res) => {
       email,
     });
 
-    // try {
-    //   await transporter.sendMail({
-    //     from: "Princess Agunloye Joktade",
-    //     to: email,
-    //     subject: "Welcome to our Foundation",
-    //     html: `
-    //     <h2>Hello ${firstName}, </h2>
-    //     <p>Welcome! Your account has been created successfully.</p>
-    //     <p>Thank you for joining us!</p>
-    //   `,
-    //   });
-    // } catch (emailError) {
-    //   console.error("Email failed", emailError);
-    //   return res.status(500).json({
-    //     success: false,
-    //     message: "Subscription saved but email was not sent.",
-    //   });
-    // }
+    try {
+      await transporter.sendMail({
+        from: "Princess Agunloye Joktade",
+        to: email,
+        subject: "Welcome to our Foundation",
+        html: `
+        <h2>Hello ${firstName}, </h2>
+        <p>Welcome! Your account has been created successfully.</p>
+        <p>Thank you for joining us!</p>
+      `,
+      });
+    } catch (emailError) {
+      console.error("Email failed", emailError);
+      return res.status(500).json({
+        success: false,
+        message: "Subscription saved but email was not sent.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
