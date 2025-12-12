@@ -1,7 +1,7 @@
 const subscriber = require("../model/subcriberModel");
 const { hash, compare } = require("../middleware/passwordHash");
 const Admin = require("../model/adminModel");
-// const transporter = require("../config/email");
+const transporter = require("../config/email");
 const jwt = require("jsonwebtoken");
 
 exports.welcome = (req, res) => {
@@ -45,6 +45,7 @@ exports.subscribe = async (req, res) => {
       return res.status(500).json({
         success: false,
         message: "Subscription saved but email was not sent.",
+        error: emailError,
       });
     }
 
