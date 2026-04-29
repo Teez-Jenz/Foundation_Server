@@ -9,12 +9,14 @@ exports.welcome = (req, res) => {
 };
 
 exports.subscribe = async (req, res) => {
+  console.log("Welcome to the subscribe endpoint");
   const { firstName, email } = req.body;
   try {
     if (!firstName || !email) {
       return res
         .status(400)
         .json({ success: false, message: "Both fields are required" });
+      console.log("Validation failed: Missing fields");
     }
 
     const existingSubscriber = await subscriber.findOne({ email });
@@ -22,6 +24,7 @@ exports.subscribe = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Email already exist" });
+      console.log("Validation failed: Email already exists");
     }
 
     const newSubscriber = await subscriber.create({
@@ -30,6 +33,11 @@ exports.subscribe = async (req, res) => {
     });
 
     try {
+      if (err.code === 11000) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Email already exists" });
+      }
       await transporter.sendMail({
         from: "Princess Agunloye Joktade",
         to: email,
@@ -40,6 +48,7 @@ exports.subscribe = async (req, res) => {
         <p>Thank you for joining us!</p>
       `,
       });
+      console.log("Email sent successfully");
     } catch (emailError) {
       console.error("Email failed", emailError);
       return res.status(500).json({
@@ -47,6 +56,7 @@ exports.subscribe = async (req, res) => {
         message: "Subscription saved but email was not sent.",
         error: emailError,
       });
+      console.log("Email sending failed");
     }
 
     return res.status(200).json({
@@ -55,11 +65,7 @@ exports.subscribe = async (req, res) => {
       data: newSubscriber,
     });
   } catch (err) {
-    if (err.code === 11000) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email already exists" });
-    }
+    console.error("Subscription error", err);
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
@@ -156,7 +162,7 @@ exports.adminLogin = async (req, res) => {
     const token = jwt.sign(
       { id: admin._id, email: admin.email },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "2h" },
     );
 
     return res
