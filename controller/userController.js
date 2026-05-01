@@ -8,67 +8,75 @@ exports.welcome = (req, res) => {
   res.send("you are welcome");
 };
 
-exports.subscribe = async (req, res) => {
-  console.log("Welcome to the subscribe endpoint");
-  const { firstName, email } = req.body;
+exports.subscribeUser = async (req, res) => {
   try {
+    const { firstName, email } = req.body;
+
+    // ✅ 1. Basic validation
     if (!firstName || !email) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Both fields are required" });
-      console.log("Validation failed: Missing fields");
+      return res.status(400).json({
+        success: false,
+        message: "First name and email are required",
+      });
     }
 
-    const existingSubscriber = await subscriber.findOne({ email });
-    if (existingSubscriber) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email already exist" });
-      console.log("Validation failed: Email already exists");
+    // simple email check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
     }
 
+    // ✅ 2. Save user
     const newSubscriber = await subscriber.create({
       firstName,
       email,
     });
 
-    try {
-      if (err.code === 11000) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Email already exists" });
-      }
-      await transporter.sendMail({
-        from: "Princess Agunloye Joktade",
+    // ✅ 3. Send email (non-blocking)
+    transporter
+      .sendMail({
+        from: `"Princess Agunloye Joktade" <${process.env.SENDING_EMAIL}>`,
         to: email,
         subject: "Welcome to our Foundation",
+        text: `Hello ${firstName}, welcome to our foundation.`,
         html: `
-        <h2>Hello ${firstName}, </h2>
-        <p>Welcome! Your account has been created successfully.</p>
-        <p>Thank you for joining us!</p>
-      `,
-      });
-      console.log("Email sent successfully");
-    } catch (emailError) {
-      console.error("Email failed", emailError);
-      return res.status(500).json({
-        success: false,
-        message: "Subscription saved but email was not sent.",
-        error: emailError,
-      });
-      console.log("Email sending failed");
-    }
+        <h2>Hello ${firstName},</h2>
+        <p>Thanks for subscribing to our foundation.</p>
+        <p>We’ll keep you updated.</p>
 
-    return res.status(200).json({
+        <hr/>
+        <p style="font-size:12px;color:gray;">
+          You received this email because you signed up on our website.
+        </p>
+      `,
+      })
+      .then(() => console.log("✅ Email sent"))
+      .catch((err) => console.error("❌ Email failed:", err));
+
+    // ✅ 4. Respond immediately (don’t wait for email)
+    return res.status(201).json({
       success: true,
-      message: "Subscription Successfull!!!",
+      message: "Subscription successful",
       data: newSubscriber,
     });
   } catch (err) {
-    console.error("Subscription error", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal server error" });
+    // ✅ 5. Handle duplicate email
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
+
+    console.error("❌ Server error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 
@@ -109,9 +117,9 @@ exports.registerAdmin = async (req, res) => {
       return;
     }
 
-    const hashPassword = await hash({ password });
+    const hashPassword = await hash(password);
 
-    const newAdmin = Admin({
+    const newAdmin = new Admin({
       name: name || `Admin${Date.now()}`,
       email,
       password: hashPassword,
@@ -119,7 +127,7 @@ exports.registerAdmin = async (req, res) => {
 
     await newAdmin.save();
 
-    return res.status(200).json({
+    return res.status(201).json({
       success: true,
       message: "A new Admin has been registered successfully ",
     });
@@ -138,25 +146,25 @@ exports.adminLogin = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Both email ans password is required",
+        message: "Both email and password are required",
       });
     }
 
     const admin = await Admin.findOne({ email });
     if (!admin) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
-    const isMatch = await compare({
-      password,
-      hashPassword: admin.password,
-    });
+    const isMatch = await compare(password, admin.password);
+
     if (!isMatch) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
     const token = jwt.sign(
@@ -165,13 +173,16 @@ exports.adminLogin = async (req, res) => {
       { expiresIn: "2h" },
     );
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Login successful", token });
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+    });
   } catch (err) {
     console.error("Admin login failed", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal Server error" });
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server error",
+    });
   }
 };
