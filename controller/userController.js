@@ -3,6 +3,8 @@ const { hash, compare } = require("../middleware/passwordHash");
 const Admin = require("../model/adminModel");
 const transporter = require("../config/email");
 const jwt = require("jsonwebtoken");
+const cloudinary = require("../config/cloudinary");
+const Video = require("../model/videoModel");
 
 exports.welcome = (req, res) => {
   res.send("you are welcome");
@@ -184,5 +186,41 @@ exports.adminLogin = async (req, res) => {
       success: false,
       message: "Internal Server error",
     });
+  }
+};
+
+//  UPLOAD VIDEO
+exports.uploadVideo = async (req, res) => {
+  try {
+    const file = req.file.path;
+
+    const result = await cloudinary.uploader.upload(file, {
+      resource_type: "video",
+      folder: "foundation_videos",
+    });
+
+    const video = await Video.create({
+      title: req.body.title,
+      url: result.secure_url,
+      public_id: result.public_id,
+    });
+
+    res.status(201).json({ success: true, video });
+  } catch (err) {
+    res.status(500).json({ success: false, err });
+  }
+};
+
+// Get videos Route
+exports.getVideos = async (req, res) => {
+  try {
+    const videos = await Video.aggregate([{ $sample: { size: 6 } }]);
+
+    res.status(200).json({
+      success: true,
+      data: videos,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
